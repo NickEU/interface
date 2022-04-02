@@ -32,11 +32,23 @@ const StyledPriceContainer = styled.button`
 export default function TradePrice({ price, showInverted, setShowInverted }: TradePriceProps) {
   const theme = useContext(ThemeContext)
 
-  const usdcPrice = useUSDCPrice(showInverted ? price.baseCurrency : price.quoteCurrency)
+  const usdcPrice = useUSDCPrice(price.quoteCurrency)
 
+  let priceInFiat = ' '
   let formattedPrice: string
   try {
-    formattedPrice = showInverted ? price.toSignificant(4) : price.invert()?.toSignificant(4)
+    const tokenRatioAfterTrade = showInverted ? price : price.invert()
+    formattedPrice = tokenRatioAfterTrade.toSignificant(4)
+    if (usdcPrice) {
+      if (showInverted) {
+        // if we're showing the inverted price the token price gets recalculated since it's price in fiat can potentially change a lot due to the price impact
+        const baseTokensInQuoteToken = +tokenRatioAfterTrade.toSignificant(4)
+        const usdcPriceOfBaseToken = +usdcPrice.toSignificant(4)
+        priceInFiat = (baseTokensInQuoteToken * usdcPriceOfBaseToken).toPrecision(4).toString()
+      } else {
+        priceInFiat = usdcPrice?.toSignificant(6, { groupSeparator: ',' }) ?? priceInFiat
+      }
+    }
   } catch (error) {
     formattedPrice = '0'
   }
@@ -57,12 +69,10 @@ export default function TradePrice({ price, showInverted, setShowInverted }: Tra
     >
       <Text fontWeight={500} color={theme.text1}>
         {text}
-      </Text>{' '}
-      {usdcPrice && (
-        <ThemedText.DarkGray>
-          <Trans>(${usdcPrice.toSignificant(6, { groupSeparator: ',' })})</Trans>
-        </ThemedText.DarkGray>
-      )}
+      </Text>
+      <ThemedText.DarkGray>
+        <Trans>(${priceInFiat})</Trans>
+      </ThemedText.DarkGray>
     </StyledPriceContainer>
   )
 }
